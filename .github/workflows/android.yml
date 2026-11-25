@@ -19,11 +19,20 @@ jobs:
           mkdir -p source
           unzip -q ALRASEEM_SUDANI_ANDROID_BUILD_READY.zip -d source
 
+      - name: Find project folder
+        run: |
+          PROJECT_DIR=$(find source -type f -name package.json -not -path "*/node_modules/*" -printf '%h\n' | head -n 1)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "package.json not found"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project found at: $PROJECT_DIR"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: ''
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -31,21 +40,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install dependencies and build
+      - name: Install and build
         run: |
-          cd source
+          cd "$PROJECT_DIR"
           npm install
           npm run build
 
       - name: Create Android project
         run: |
-          cd source
+          cd "$PROJECT_DIR"
           npx cap add android
           npx cap sync android
 
       - name: Build APK
         run: |
-          cd source/android
+          cd "$PROJECT_DIR/android"
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -53,4 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ALRASEEM-SUDANI-APK
-          path: source/android/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/*.apk
